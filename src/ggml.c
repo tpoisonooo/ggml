@@ -6578,10 +6578,168 @@ static void ggml_compute_forward_flash_ff(
     }
 }
 
-/////////////////////////////////
+
+const char* ggml_op_string(enum ggml_op op)
+{
+    switch(op) {
+        case GGML_OP_NONE:
+            return "NONE";
+        case GGML_OP_DUP:
+            return "DUP";
+        case GGML_OP_ADD:
+            return "ADD";
+        case GGML_OP_SUB:
+            return "SUB";
+        case GGML_OP_MUL:
+            return "MUL";
+        case GGML_OP_DIV:
+            return "DIV";
+        case GGML_OP_SQR:
+            return "SQR";
+        case GGML_OP_SQRT:
+            return "SQRT";
+        case GGML_OP_SUM:
+            return "SUM";
+        case GGML_OP_MEAN:
+            return "MEAN";
+        case GGML_OP_REPEAT:
+            return "REPEAT";
+        case GGML_OP_ABS:
+            return "ABS";
+        case GGML_OP_SGN:
+            return "SGN";
+        case GGML_OP_NEG:
+            return "NEG";
+        case GGML_OP_STEP:
+            return "STEP";
+        case GGML_OP_RELU:
+            return "RELU";
+        case GGML_OP_GELU:
+            return "GELU";
+        case GGML_OP_NORM:
+            return "NORM";
+        case GGML_OP_MUL_MAT:
+            return "MUL_MAT";
+        case GGML_OP_SCALE:
+            return "SCALE";
+        case GGML_OP_CPY:
+            return "CPY";
+        case GGML_OP_RESHAPE:
+            return "RESHAPE";
+        case GGML_OP_VIEW:
+            return "VIEW";
+        case GGML_OP_PERMUTE:
+            return "PERMUTE";
+        case GGML_OP_TRANSPOSE:
+            return "TRANSPOSE";
+        case GGML_OP_GET_ROWS:
+            return "GET_ROWS";
+        case GGML_OP_DIAG_MASK_INF:
+            return "DIAG_MASK_INF";
+        case GGML_OP_SOFT_MAX:
+            return "SOFT_MAX";
+        case GGML_OP_ROPE:
+            return "ROPE";
+        case GGML_OP_CONV_1D_1S:
+            return "CONV_1D_1S";
+
+        case GGML_OP_CONV_1D_2S:
+            return "GGML_OP_CONV_1D_2S";
+        case GGML_OP_FLASH_ATTN:
+            return "GGML_OP_FLASH_ATTN";
+        case GGML_OP_FLASH_FF:
+            return "GGML_OP_FLASH_FF";
+        case GGML_OP_COUNT:
+            return "GGML_OP_COUNT";
+    }
+    return "unknown";
+}
+
+static void append(char* line) {
+    FILE *pf = fopen("graph.txt", "a");
+    fprintf(pf, "%s \n", line);
+    fclose(pf);
+}
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     assert(params);
+
+    struct stat xbuffer;   
+    bool exist = stat ("tag", &xbuffer) == 0;
+    if (exist){
+        // node2 [shape=rect]
+        char nodebuf[64] = {0};
+        char tensorbuf[64] = {0};
+        char output[256] = {0};
+
+
+        sprintf(nodebuf, "%s%p", ggml_op_string(tensor->op), (void*)params);
+
+        sprintf(tensorbuf, "tensor%p", (void*)tensor->src0);
+        // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+        // append(output);
+
+        sprintf(output, "  %s -> %s; \n", tensorbuf, nodebuf);
+        append(output);
+
+        sprintf(tensorbuf, "tensor%p", (void*)tensor);
+        // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+        // append(output);
+
+        sprintf(output, "  %s -> %s; \n", nodebuf, tensorbuf);
+        append(output);
+
+
+        switch (tensor->op)
+        {
+        // binary op
+        case GGML_OP_ADD:
+        case GGML_OP_SUB:
+        case GGML_OP_MUL:
+        case GGML_OP_DIV:
+        case GGML_OP_MUL_MAT:
+        case GGML_OP_SCALE:
+        case GGML_OP_GET_ROWS:
+        case GGML_OP_DIAG_MASK_INF:
+        case GGML_OP_ROPE:
+        case GGML_OP_CONV_1D_1S:
+        case GGML_OP_CONV_1D_2S:
+        case GGML_OP_FLASH_ATTN:
+        case GGML_OP_FLASH_FF:
+
+            sprintf(tensorbuf, "tensor%p", (void*)tensor->src1);
+            // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+            // append(output);
+            sprintf(output, "  %s -> %s;", tensorbuf, nodebuf);
+            append(output);
+
+            break;
+        default:
+            break;
+        }
+
+        if (tensor->op == GGML_OP_FLASH_ATTN) {
+            sprintf(tensorbuf, "tensor%p", (void*)tensor->opt[0]);
+            // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+            // append(output);
+            sprintf(output, "  %s -> %s;", tensorbuf, nodebuf);
+            append(output);
+        }
+
+        if (tensor->op == GGML_OP_FLASH_FF) {
+            sprintf(tensorbuf, "tensor%p", (void*)tensor->opt[1]);
+            // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+            // append(output);
+            sprintf(output, "  %s -> %s;", tensorbuf, nodebuf);
+            append(output);
+
+            sprintf(tensorbuf, "tensor%p", (void*)tensor->opt[2]);
+            // sprintf(output, "  %s [shape=rect] \n", tensorbuf);
+            // append(output);
+            sprintf(output, "  %s -> %s;", tensorbuf, nodebuf);
+            append(output);
+        }
+    }
 
     switch (tensor->op) {
         case GGML_OP_DUP:

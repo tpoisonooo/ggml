@@ -176,6 +176,11 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #define GGML_MAX_DIMS     4
 #define GGML_MAX_NODES    4096

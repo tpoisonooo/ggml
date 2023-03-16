@@ -10,6 +10,9 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <unistd.h>
+#include <sys/stat.h>
 
 // default hparams (GPT-J 6B)
 struct gptj_hparams {
@@ -587,6 +590,32 @@ bool gptj_eval(
     return true;
 }
 
+int mark_as_begin() {
+    FILE *fp = fopen("tag", "w");    // 创建文件
+    if(fp != NULL) {
+        printf("创建成功！\n");
+        fclose(fp);
+    } else {
+        printf("创建失败！\n");
+    }
+
+    std::ofstream outfile("graph.txt", std::ios::out);
+    outfile << "digraph G {" << std::endl;
+    outfile.close();
+    return 0;
+}
+
+int mark_as_finish() {
+    if(remove("tag") == 0) {    // 删除文件
+        printf("删除成功！\n");
+    } 
+
+    std::ofstream outfile("graph.txt", std::ios::out | std::ios::app);
+    outfile << "}" << std::endl;
+    outfile.close();
+    return 0;
+}
+
 int main(int argc, char ** argv) {
     const int64_t t_main_start_us = ggml_time_us();
 
@@ -644,7 +673,11 @@ int main(int argc, char ** argv) {
 
     // determine the required inference memory per token:
     size_t mem_per_token = 0;
+    mark_as_begin();
     gptj_eval(model, params.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
+    mark_as_finish();
+
+    std::cout << "determine memory!!!!" << std::endl;
 
     for (int i = embd.size(); i < embd_inp.size() + params.n_predict; i++) {
         // predict
